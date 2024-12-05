@@ -1,0 +1,7 @@
+"Metric","Value"
+"Precision",0.853
+"Recall",0.911
+"F1-Score",0.881
+"Accuracy",0.877
+"MSE",0.123
+"MAE",0.123
