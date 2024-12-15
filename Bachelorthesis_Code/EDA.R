@@ -1,4 +1,4 @@
-setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis")
+setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis/Bachelorthesis_Code")
 df <- read.csv("amazon.csv")
 
 library(stringr)
@@ -138,19 +138,19 @@ corrplot::corrplot(correlation_matrix, method = "color", type = "upper", tl.col 
 # Distribution of Rating Count
 ggplot(df, aes(x = rating_count)) +
   geom_histogram(bins = 30, fill = "skyblue", color = "black") +
-  labs(title = "Distribution of Rating Count", x = "Rating Count", y = "Count") +
+  labs(x = "Rating Count", y = "Count") +
   theme_minimal()
 
 # Distribution of Discounted Price
 ggplot(df, aes(x = discounted_price)) +
   geom_histogram(bins = 30, fill = "blue", color = "black") +
-  labs(title = "Distribution of Discounted Price", x = "Discounted Price", y = "Count") +
+  labs(x = "Discounted Price", y = "Count") +
   theme_minimal()
 
 # Distribution of Combined Sentiment Score
 ggplot(df, aes(x = combined_sentiment_score)) +
   geom_histogram(bins = 30, fill = "darkblue", color = "black") +
-  labs(title = "Distribution of Combined Sentiment Score", x = "Combined Sentiment Score", y = "Count") +
+  labs(x = "Combined Sentiment Score", y = "Count") +
   theme_minimal()
 
 
@@ -159,21 +159,24 @@ category_sentiment <- df %>%
   group_by(main_category) %>%
   summarize(avg_combined_sentiment = mean(combined_sentiment_score, na.rm = TRUE))
 
+# Distribution of Average Combined Sentiment Score by Main Category
 ggplot(category_sentiment, aes(x = reorder(main_category, -avg_combined_sentiment), y = avg_combined_sentiment)) +
   geom_bar(stat = "identity", fill = "lightblue") +
   coord_flip() +
-  labs(title = "Distribution of Average Combined Sentiment Score by Main Category", x = "Main Category", y = "Average Combined Sentiment Score") +
+  labs(x = "Main Category", y = "Average Combined Sentiment Score") +
   theme_minimal()
+
 
 # Average Combined Sentiment Score by Sub-Category (Barplot)
 sub_category_sentiment <- df %>%
   group_by(sub_category) %>%
   summarize(avg_combined_sentiment = mean(combined_sentiment_score, na.rm = TRUE))
 
+# Distribution of Combined Sentiment Scores by Sub-Category
 ggplot(sub_category_sentiment, aes(x = reorder(sub_category, -avg_combined_sentiment), y = avg_combined_sentiment)) +
   geom_bar(stat = "identity", fill = "lightblue") +
   coord_flip() +
-  labs(title = "Distribution of Combined Sentiment Scores by Sub-Category", x = "Sub-Category", y = "Average Combined Sentiment Score") +
+  labs(x = "Sub-Category", y = "Average Combined Sentiment Score") +
   theme_minimal()
 
 # Average Content Sentiment Score by Main Category (Barplot)
@@ -181,10 +184,11 @@ main_category_content_sentiment <- df %>%
   group_by(main_category) %>%
   summarize(avg_content_sentiment = mean(content_sentiment_score, na.rm = TRUE))
 
+# Distribution of Content Sentiment Scores by Main Category
 ggplot(main_category_content_sentiment, aes(x = reorder(main_category, -avg_content_sentiment), y = avg_content_sentiment)) +
   geom_bar(stat = "identity", fill = "orange") +
   coord_flip() +
-  labs(title = "Distribution of Content Sentiment Scores by Main Category", x = "Main Category", y = "Average Content Sentiment Score") +
+  labs(x = "Main Category", y = "Average Content Sentiment Score") +
   theme_minimal()
 
 # Average Content Sentiment Score by Sub-Category (Barplot)
@@ -192,10 +196,11 @@ sub_category_content_sentiment <- df %>%
   group_by(sub_category) %>%
   summarize(avg_content_sentiment = mean(content_sentiment_score, na.rm = TRUE))
 
+# Distribution of Content Sentiment Scores by Sub-Category
 ggplot(sub_category_content_sentiment, aes(x = reorder(sub_category, -avg_content_sentiment), y = avg_content_sentiment)) +
   geom_bar(stat = "identity", fill = "orange") +
   coord_flip() +
-  labs(title = "Distribution of Content Sentiment Scores by Sub-Category", x = "Sub-Category", y = "Average Content Sentiment Score") +
+  labs(x = "Sub-Category", y = "Average Content Sentiment Score") +
   theme_minimal()
 
 # Average Title Sentiment Score by Main Category (Barplot)
@@ -203,10 +208,11 @@ main_category_title_sentiment <- df %>%
   group_by(main_category) %>%
   summarize(avg_title_sentiment = mean(title_sentiment_score, na.rm = TRUE))
 
+# Distribution of Title Sentiment Scores by Main Category
 ggplot(main_category_title_sentiment, aes(x = reorder(main_category, -avg_title_sentiment), y = avg_title_sentiment)) +
   geom_bar(stat = "identity", fill = "skyblue") +
   coord_flip() +
-  labs(title = "Distribution of Title Sentiment Scores by Main Category", x = "Main Category", y = "Average Title Sentiment Score") +
+  labs(x = "Main Category", y = "Average Title Sentiment Score") +
   theme_minimal()
 
 # Average Title Sentiment Score by Sub-Category (Barplot)
@@ -214,10 +220,11 @@ sub_category_title_sentiment <- df %>%
   group_by(sub_category) %>%
   summarize(avg_title_sentiment = mean(title_sentiment_score, na.rm = TRUE))
 
+# Distribution of Title Sentiment Scores by Sub-Category
 ggplot(sub_category_title_sentiment, aes(x = reorder(sub_category, -avg_title_sentiment), y = avg_title_sentiment)) +
   geom_bar(stat = "identity", fill = "skyblue") +
   coord_flip() +
-  labs(title = "Distribution of Title Sentiment Scores by Sub-Category", x = "Sub-Category", y = "Average Title Sentiment Score") +
+  labs(x = "Sub-Category", y = "Average Title Sentiment Score") +
   theme_minimal()
 
 # Exploring Relationships
@@ -271,12 +278,12 @@ ggplot(df, aes(x = combined_sentiment_category)) +
 
 ggplot(df, aes(x = content_sentiment_category)) +
   geom_bar(fill = "blue", color = "black") +
-  labs(title = "Distribution of Content Sentiment Categories", x = "Sentiment Category", y = "Count") +
+  labs( x = "Sentiment Category", y = "Count") +
   theme_minimal()
 
 ggplot(df, aes(x = title_sentiment_category)) +
   geom_bar(fill = "darkblue", color = "black") +
-  labs(title = "Distribution of Title Sentiment Categories", x = "Sentiment Category", y = "Count") +
+  labs( x = "Sentiment Category", y = "Count") +
   theme_minimal()
 
 # Sentiment Distribution by Rating

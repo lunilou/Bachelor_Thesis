@@ -1,4 +1,3 @@
-setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis")
 df <- read.csv("processed_amazon_data.csv")
 
 library(caret)
@@ -6,7 +5,6 @@ library(ggplot2)
 library(lattice)
 library(dplyr)
 library(pROC)
-install.packages("rpart")
 library(rpart)
 library(rpart.plot)
 library(MLmetrics)
@@ -38,17 +36,6 @@ classification_report <- function(predictions, y_true) {
   print(confusion)
   return(confusion)
 }
-
-calculate_mse_rmse <- function(predictions, y_true) {
-  y_numeric <- ifelse(y_true == "High", 1, 0)
-  pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- MSE(pred_numeric, y_numeric)
-  rmse <- RMSE(pred_numeric, y_numeric)
-  cat("MSE:", mse, "\n")
-  cat("RMSE:", rmse, "\n")
-  return(list(MSE = mse, RMSE = rmse))
-}
-
 # ------------------ Decision Tree ------------------
 dt_control <- trainControl(
   method = "cv",
@@ -75,7 +62,7 @@ ggplot(results, aes(x = cp, y = ROC)) +
   geom_line() +
   geom_point() +
   theme_minimal() +
-  labs(title = "Grid Search Results", x = "Complexity Parameter (cp)", y = "Accuracy")
+  labs(x = "Complexity Parameter (cp)", y = "ROC AUC")
 #--------------------------------------------------------------------------- 
 set.seed(123)
 dt_model <- train(
@@ -95,123 +82,16 @@ dt_auc <- auc(dt_roc)
 cat("Decision Tree Results:\n")
 classification_report(dt_predictions, y_test)
 cat("Decision Tree AUC:", round(dt_auc, 2), "\n")
-calculate_mae <- function(predictions, y_true) {
-  y_numeric <- ifelse(y_true == "High", 1, 0)
-  pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mae <- mean(abs(pred_numeric - y_numeric))
-  cat("MAE:", round(mae, 3), "\n")
-  return(mae)
-}
 
-calculate_mae(dt_predictions, y_test)
-
-calculate_mse_rmse(dt_predictions, y_test)
-plot(dt_roc, col = "blue", main = "Decision Tree ROC Curve")
+plot(dt_roc, col = "blue")
 abline(a = 0, b = 1, col = "red", lty = 2)
 
-# ------------------ Visualize Decision Tree ------------------
+# ------------------ Visualize Decision Tree ---------------------------
 cat("Visualizing Pruned Decision Tree:\n")
 
 dt_model_pruned <- prune(dt_model$finalModel, cp = 0.0075)  
 rpart.plot(dt_model_pruned, cex = 0.6)
-
-# ------------------ Learning Curve across different Training Set Sizes ------------------
-plot_learning_curve <- function(method, trainData, metric = "ROC", tuneGrid = NULL) {
-  train_sizes <- seq(0.1, 1.0, by = 0.2)
-  results <- data.frame(Train_Size = numeric(), Metric = numeric())
-  
-  for (size in train_sizes) {
-    idx <- sample(1:nrow(trainData), size = floor(size * nrow(trainData)))
-    train_subset <- trainData[idx, ]
-    
-    x_train_subset <- as.matrix(train_subset %>% select(-rating_binary))
-    y_train_subset <- train_subset$rating_binary
-    
-    model <- train(
-      x = x_train_subset, 
-      y = y_train_subset, 
-      method = method, 
-      metric = metric, 
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-    probabilities <- predict(model, newdata = x_train_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_train_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-    
-    results <- rbind(results, data.frame(Train_Size = size, Metric = auc_value))
-  }
-  
-  ggplot(results, aes(x = Train_Size, y = Metric)) +
-    geom_line(color = "blue") +
-    geom_point(color = "red") +
-    labs(title = "Learning Curve - Decision Tree",
-         x = "Training Set Size (Proportion)",
-         y = "ROC") +
-    theme_minimal()
-}
-
-# Tuned Model
-plot_learning_curve(
-  method = "rpart", 
-  trainData = trainData, 
-  metric = "ROC", 
-  tuneGrid = expand.grid(cp = seq(0.006, 0.009, by = 0.0002))
-)
-#------------------Learning Curve across different Test Set Sizes------------------------------
-plot_learning_curve_test_set <- function(method, trainData, testData, metric = "ROC", tuneGrid = NULL) {
-  test_sizes <- seq(0.1, 0.9, by = 0.2) 
-  results <- data.frame(Test_Size = numeric(), Metric = numeric())
-  
-  for (size in test_sizes) {
-    idx <- sample(1:nrow(testData), size = floor(size * nrow(testData)))
-    test_subset <- testData[idx, ]
-    
-    x_test_subset <- as.matrix(test_subset %>% select(-rating_binary))
-    y_test_subset <- test_subset$rating_binary
-    
-    model <- train(
-      x = as.matrix(trainData %>% select(-rating_binary)), 
-      y = trainData$rating_binary, 
-      method = method, 
-      metric = metric, 
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-    probabilities <- predict(model, newdata = x_test_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_test_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-    
-    results <- rbind(results, data.frame(Test_Size = size, Metric = auc_value))
-  }
-  
-  ggplot(results, aes(x = Test_Size, y = Metric)) +
-    geom_line(color = "blue", size = 1) +
-    geom_point(color = "red", size = 3) +
-    labs(
-      title = "Learning Curve - Test Set Sizes",
-      x = "Test Set Size (Proportion)",
-      y = metric
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 14),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
-    )
-}
-
-plot_learning_curve_test_set(
-  method = "rpart", 
-  trainData = trainData, 
-  testData = testData, 
-  metric = "ROC", 
-  tuneGrid = expand.grid(cp = seq(0.006, 0.009, by = 0.0002))
-)
-
-# ------------------ SHAP ------------------
+# -------------------------- SHAP --------------------------------------
 library(iml)
 
 compute_shap_dt <- function(dt_model, x_train, y_train, x_test) {
@@ -285,13 +165,11 @@ calculate_metrics <- function(predictions, y_true, probabilities) {
   
   y_numeric <- ifelse(y_true == "High", 1, 0)
   pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- mean((pred_numeric - y_numeric)^2)
-  mae <- mean(abs(pred_numeric - y_numeric))
   
   
   metrics <- data.frame(
-    Metric = c("Precision", "Recall", "F1-Score", "Accuracy", "MSE", "MAE"),
-    Value = round(c(precision, recall, f1_score, accuracy, mse, mae), 3)
+    Metric = c("Precision", "Recall", "F1-Score", "Accuracy"),
+    Value = round(c(precision, recall, f1_score, accuracy), 3)
   )
   
   return(metrics)
@@ -321,7 +199,6 @@ plot_metrics <- function(metrics_table) {
     geom_text(aes(label = Value), vjust = -0.5) +
     theme_minimal() +
     labs(
-      title = "Classification Metrics",
       y = "Value",
       x = "Metric"
     ) +

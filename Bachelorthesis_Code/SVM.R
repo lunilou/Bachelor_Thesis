@@ -1,4 +1,3 @@
-setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis")
 df <- read.csv("processed_amazon_data.csv")
 
 library(caret)
@@ -6,7 +5,7 @@ library(ggplot2)
 library(lattice)
 library(pROC)
 library(dplyr)
-library(e1071)  
+library(e1071) 
 library(kernlab)
 
 set.seed(123)
@@ -74,110 +73,8 @@ cat("SVM Results:\n")
 print(confusion)
 cat("AUC:", round(auc_value, 2), "\n")
 
-plot(svm_roc, col = "blue", main = "SVM ROC Curve")
+plot(svm_roc, col = "blue")
 abline(a = 0, b = 1, col = "red", lty = 2)
-#---------------------Learning Curve Training Set Sizes----------------------------------
-calculate_learning_curve <- function(trainData, method, tuneGrid, metric = "ROC") {
-  train_sizes <- seq(0.1, 1.0, by = 0.2)  
-  auc_values <- numeric(length(train_sizes))
-  
-  for (i in seq_along(train_sizes)) {
-    subset_idx <- sample(1:nrow(trainData), size = floor(train_sizes[i] * nrow(trainData)))
-    subset_train <- trainData[subset_idx, ]
-    
-    x_train_subset <- as.data.frame(subset_train %>% select(-rating_binary))
-    y_train_subset <- subset_train$rating_binary
-    
-    model <- train(
-      x = x_train_subset,
-      y = y_train_subset,
-      method = method,
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-    probabilities <- predict(model, newdata = x_train_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_train_subset, probabilities, levels = c("Low", "High"))
-    auc_values[i] <- auc(roc_curve)
-  }
-
-  return(data.frame(Train_Size = train_sizes, Metric = auc_values))
-}
-results <- calculate_learning_curve(
-  trainData = trainData,
-  method = "svmRadial",
-  tuneGrid = svm_grid
-)
-
-ggplot(results, aes(x = Train_Size, y = Metric)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "red", size = 3) +
-  labs(
-    title = "Learning Curve - SVM",
-    x = "Training Set Size (Proportion)",
-    y = "ROC"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
-  )
-#----------------------Learning Curve for Test Set Sizes------------------
-calculate_learning_curve_test <- function(trainData, testData, method, tuneGrid, metric = "ROC") {
-  test_sizes <- seq(0.1, 1.0, by = 0.2)  
-  auc_values <- numeric(length(test_sizes))
-  
-  for (i in seq_along(test_sizes)) {
-    subset_idx <- sample(1:nrow(testData), size = floor(test_sizes[i] * nrow(testData)))
-    subset_test <- testData[subset_idx, ]
-    
-    x_train <- as.data.frame(trainData %>% select(-rating_binary))
-    y_train <- trainData$rating_binary
-    
-    x_test_subset <- as.data.frame(subset_test %>% select(-rating_binary))
-    y_test_subset <- subset_test$rating_binary
-    
-    model <- train(
-      x = x_train,
-      y = y_train,
-      method = method,
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-    probabilities <- predict(model, newdata = x_test_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_test_subset, probabilities, levels = c("Low", "High"))
-    auc_values[i] <- auc(roc_curve)
-  }
-
-  return(data.frame(Test_Size = test_sizes, Metric = auc_values))
-}
-
-results_test <- calculate_learning_curve_test(
-  trainData = trainData,
-  testData = testData,
-  method = "svmRadial",
-  tuneGrid = svm_grid
-)
-
-ggplot(results_test, aes(x = Test_Size, y = Metric)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "red", size = 3) +
-  labs(
-    title = "Learning Curve - Test Set Sizes for SVM",
-    x = "Test Set Size (Proportion)",
-    y = "ROC"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
-  )
-
 # ------------------ SHAP for Models -----------------------------------
 library(iml)
 
@@ -262,12 +159,10 @@ calculate_metrics <- function(predictions, y_true, probabilities) {
 
   y_numeric <- ifelse(y_true == "High", 1, 0)
   pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- mean((pred_numeric - y_numeric)^2)
-  mae <- mean(abs(pred_numeric - y_numeric))
 
   metrics <- data.frame(
-    Metric = c("Precision", "Recall", "F1-Score", "Accuracy", "MSE", "MAE"),
-    Value = round(c(precision, recall, f1_score, accuracy, mse, mae), 3)
+    Metric = c("Precision", "Recall", "F1-Score", "Accuracy"),
+    Value = round(c(precision, recall, f1_score, accuracy), 3)
   )
   
   return(metrics)
@@ -292,7 +187,6 @@ plot_metrics <- function(metrics_table) {
     geom_text(aes(label = Value), vjust = -0.5) +
     theme_minimal() +
     labs(
-      title = "Classification Metrics",
       y = "Value",
       x = "Metric"
     ) +

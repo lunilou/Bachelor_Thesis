@@ -1,4 +1,3 @@
-setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis")
 df <- read.csv("processed_amazon_data.csv")
 
 library(caret)
@@ -37,16 +36,6 @@ classification_report <- function(predictions, y_true) {
   cat("Classification Report:\n")
   print(confusion)
   return(confusion)
-}
-
-calculate_mse_rmse <- function(predictions, y_true) {
-  y_numeric <- ifelse(y_true == "High", 1, 0)
-  pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- MSE(pred_numeric, y_numeric)
-  rmse <- RMSE(pred_numeric, y_numeric)
-  cat("MSE:", mse, "\n")
-  cat("RMSE:", rmse, "\n")
-  return(list(MSE = mse, RMSE = rmse))
 }
 
 # ------------------ XGBoost ------------------
@@ -146,136 +135,10 @@ xgb_auc <- auc(xgb_roc)
 cat("XGBoost Results:\n")
 classification_report(as.factor(xgb_class), as.factor(ifelse(y_test_xgb == 1, "High", "Low")))
 cat("XGBoost AUC:", round(xgb_auc, 2), "\n")
-calculate_mse_rmse(as.factor(xgb_class), as.factor(ifelse(y_test_xgb == 1, "High", "Low")))
 
-plot(xgb_roc, col = "blue", main = "XGBoost ROC Curve")
+plot(xgb_roc, col = "blue")
 abline(a = 0, b = 1, col = "red", lty = 2)
 
-
-# ------------------ Learning Curve across different Training Set Sizes------------------
-plot_learning_curve <- function(method, trainData, metric = "ROC", tuneGrid = NULL) {
-  library(pROC)  
-  
-  train_sizes <- seq(0.1, 1.0, by = 0.2) 
-  results <- data.frame(Train_Size = numeric(), Metric = numeric()) 
-  
-  for (size in train_sizes) {
-    idx <- sample(1:nrow(trainData), size = floor(size * nrow(trainData)))
-    train_subset <- trainData[idx, ]
-
-    x_train_subset <- as.matrix(train_subset %>% select(-rating_binary))
-    y_train_subset <- train_subset$rating_binary
-
-    model <- train(
-      x = x_train_subset, 
-      y = y_train_subset, 
-      method = method, 
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-
-    probabilities <- predict(model, newdata = x_train_subset, type = "prob")[, "High"]
-
-    roc_curve <- roc(y_train_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-
-    results <- rbind(results, data.frame(Train_Size = size, Metric = auc_value))
-  }
-
-  plot(results$Train_Size, results$Metric, type = "b", col = "blue", pch = 19,
-       xlab = "Training Set Size", ylab = metric)
-  title(main = paste("Learning Curve -", method))
-}
-small_tune_grid <- expand.grid(
-  nrounds = c(50, 100),
-  eta = 0.1,
-  max_depth = 6,
-  gamma = 0,
-  colsample_bytree = 0.8,
-  min_child_weight = 1,
-  subsample = 0.7
-)
-
-plot_learning_curve(
-  method = "xgbTree",
-  trainData = trainData,
-  metric = "ROC",
-  tuneGrid = small_tune_grid
-)
-#--------------Learning Curve across different Test Set Sizes-------------------
-tuneGrid <- expand.grid(
-  nrounds = c(50, 100),
-  eta = c(0.1, 0.2),
-  max_depth = c(4, 6),
-  gamma = 0,
-  colsample_bytree = 0.8,
-  min_child_weight = 1,
-  subsample = 0.8
-)
-
-plot_learning_curve_test <- function(method, trainData, testData, metric = "ROC", tuneGrid = NULL) {
-  library(ggplot2)
-  library(pROC)
-  
-  test_sizes <- seq(0.1, 1.0, by = 0.2)  # Test set sizes to vary
-  results <- data.frame(Test_Size = numeric(), Metric = numeric())
-  
-  for (size in test_sizes) {
-   
-    idx <- sample(1:nrow(testData), size = floor(size * nrow(testData)))
-    test_subset <- testData[idx, ]
-    
-   
-    x_train <- as.matrix(trainData %>% select(-rating_binary))
-    y_train <- trainData$rating_binary
-    
-    x_test_subset <- as.matrix(test_subset %>% select(-rating_binary))
-    y_test_subset <- test_subset$rating_binary
-    
-  
-    model <- train(
-      x = x_train, 
-      y = y_train, 
-      method = method, 
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-   
-    probabilities <- predict(model, newdata = x_test_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_test_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-    
-    
-    results <- rbind(results, data.frame(Test_Size = size, Metric = auc_value))
-  }
-  
-  
-  ggplot(results, aes(x = Test_Size, y = Metric)) +
-    geom_line(color = "blue", size = 1) +
-    geom_point(color = "red", size = 3) +
-    labs(
-      title = paste("Learning Curve - Test Set Size for", method),
-      x = "Test Set Size (Proportion)",
-      y = metric
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 14),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
-    )
-}
-
-plot_learning_curve_test(
-  method = "xgbTree", 
-  trainData = trainData, 
-  testData = testData, 
-  metric = "ROC", 
-  tuneGrid = tuneGrid
-)
 # ------------------ SHAP for Models -----------------------------------------------
 library(iml)
 
@@ -334,7 +197,7 @@ ggplot(feature_importance$results, aes(x = importance, y = reorder(feature, impo
   geom_bar(stat = "identity", fill = "darkblue") +
   theme_minimal() +
   labs(
-    title = "Feature Importance - SVM",
+    title = "Feature Importance - XGBoost",
     x = "Importance (Loss: function(actual, predicted))",
     y = "Features"
   ) +
@@ -364,12 +227,10 @@ calculate_metrics <- function(predictions, y_true, probabilities) {
 
   y_numeric <- ifelse(y_true == "High", 1, 0)
   pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- mean((pred_numeric - y_numeric)^2)
-  mae <- mean(abs(pred_numeric - y_numeric))
 
   metrics <- data.frame(
-    Metric = c("Precision", "Recall", "F1-Score", "Accuracy", "MSE", "MAE"),
-    Value = round(c(precision, recall, f1_score, accuracy, mse, mae), 3)
+    Metric = c("Precision", "Recall", "F1-Score", "Accuracy"),
+    Value = round(c(precision, recall, f1_score, accuracy), 3)
   )
   
   return(metrics)
@@ -395,7 +256,6 @@ plot_metrics <- function(metrics_table) {
     geom_text(aes(label = Value), vjust = -0.5) +
     theme_minimal() +
     labs(
-      title = "Classification Metrics",
       y = "Value",
       x = "Metric"
     ) +

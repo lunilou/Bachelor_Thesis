@@ -1,4 +1,3 @@
-setwd("/Users/romyl/OneDrive/Desktop/Bachelor Thesis")
 df <- read.csv("processed_amazon_data.csv")
 
 
@@ -40,48 +39,6 @@ classification_report <- function(predictions, y_true) {
   return(confusion)
 }
 
-calculate_mse_rmse <- function(predictions, y_true) {
-  y_numeric <- ifelse(y_true == "High", 1, 0)
-  pred_numeric <- ifelse(predictions == "High", 1, 0)
-  mse <- MSE(pred_numeric, y_numeric)
-  rmse <- RMSE(pred_numeric, y_numeric)
-  cat("MSE:", mse, "\n")
-  cat("RMSE:", rmse, "\n")
-  return(list(MSE = mse, RMSE = rmse))
-}
-
-plot_learning_curve <- function(method, trainData, metric = "ROC", tuneGrid = NULL) {
-  train_sizes <- seq(0.1, 1.0, by = 0.2)
-  results <- data.frame(Train_Size = numeric(), Metric = numeric())
-  
-  for (size in train_sizes) {
-   
-    idx <- sample(1:nrow(trainData), size = floor(size * nrow(trainData)))
-    train_subset <- trainData[idx, ]
-    
-    x_train_subset <- as.matrix(train_subset %>% select(-rating_binary))
-    y_train_subset <- train_subset$rating_binary
-    
-    model <- train(
-      x = x_train_subset, 
-      y = y_train_subset, 
-      method = method, 
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-  
-    probabilities <- predict(model, newdata = x_train_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_train_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-    
-    results <- rbind(results, data.frame(Train_Size = size, Metric = auc_value))
-  }
-  
-  plot(results$Train_Size, results$Metric, type = "b", col = "blue", pch = 19, xlab = "Training Set Size", ylab = metric)
-  title(main = paste("Learning Curve -", method))
-}
-
 #---------------------------KNN------------------------------------------------
 knn_control <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary)
 knn_grid <- expand.grid(k = 9) #best k
@@ -107,104 +64,26 @@ ggplot(knn_model$results, aes(x = k, y = ROC)) +
   geom_line(color = "blue") +
   geom_point(color = "red", size = 2) +
   labs(
-    title = "KNN Grid Search Results",
     x = "Number of Neighbors (k)",
-    y = "Accuracy"
+    y = "ROC AUC"
   ) +
   theme_minimal()
 
-#------------------------Learning Curve for Training Set Sizes------------------------------------------------------------------------
-preProc <- preProcess(x_train, method = c("center", "scale"))
-x_train <- predict(preProc, x_train)
-x_test <- predict(preProc, x_test) 
+#--------------------Model Evaluation------------------------
+knn_predictions <- predict(knn_model, newdata = x_test)  # Hard class predictions
+knn_probabilities <- predict(knn_model, newdata = x_test, type = "prob")[, "High"]  # Probabilities for the "High" class
 
-knn_model <- train(
-  x = x_train, y = y_train, method = "knn", metric = "ROC", trControl = knn_control, tuneGrid = knn_grid
-)
+knn_roc <- roc(y_test, knn_probabilities, levels = c("Low", "High"))  # Create ROC curve
+auc_value <- auc(knn_roc)  # Calculate AUC
 
-knn_predictions <- predict(knn_model, newdata = x_test)
-knn_probabilities <- predict(knn_model, newdata = x_test, type = "prob")[, "High"]
-knn_roc <- roc(y_test, knn_probabilities, levels = c("Low", "High"))
-knn_auc <- auc(knn_roc)
-
+confusion <- confusionMatrix(knn_predictions, y_test)
 cat("KNN Results:\n")
-classification_report(knn_predictions, y_test)
-cat("KNN AUC:", round(knn_auc, 2), "\n")
-calculate_mse_rmse(knn_predictions, y_test)
-plot(knn_roc, col = "blue", main = "KNN ROC Curve")
+print(confusion)
+cat("AUC:", round(auc_value, 2), "\n")
+
+plot(knn_roc, col = "blue")
 abline(a = 0, b = 1, col = "red", lty = 2)
 
-plot_learning_curve(
-  method = "knn", 
-  trainData = trainData, 
-  metric = "ROC", 
-  tuneGrid = expand.grid(k = 9)
-)
-
-#-----------------------Learning Curve for Test Set Sizes--------------------------------
-plot_learning_curve_test_knn <- function(trainData, testData, metric = "ROC", tuneGrid = NULL) {
-  library(pROC)
-  
-  test_sizes <- seq(0.1, 1.0, by = 0.2)  # Test set sizes to vary
-  results <- data.frame(Test_Size = numeric(), Metric = numeric())
-  
-  # Preprocess the training data (normalize)
-  preProc <- preProcess(trainData %>% select(-rating_binary), method = c("center", "scale"))
-  x_train <- predict(preProc, trainData %>% select(-rating_binary))
-  y_train <- trainData$rating_binary
-  
-  for (size in test_sizes) {
-    # Randomly sample a subset of the test data based on the size
-    idx <- sample(1:nrow(testData), size = floor(size * nrow(testData)))
-    test_subset <- testData[idx, ]
-    
-    # Preprocess the test subset (normalize)
-    x_test_subset <- predict(preProc, test_subset %>% select(-rating_binary))
-    y_test_subset <- test_subset$rating_binary
-    
-    # Train the KNN model on the full training data
-    knn_model <- train(
-      x = x_train, 
-      y = y_train, 
-      method = "knn", 
-      metric = metric,
-      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction = twoClassSummary),
-      tuneGrid = tuneGrid
-    )
-    
-    # Evaluate the model on the subset of the test data
-    probabilities <- predict(knn_model, newdata = x_test_subset, type = "prob")[, "High"]
-    roc_curve <- roc(y_test_subset, probabilities, levels = c("Low", "High"))
-    auc_value <- auc(roc_curve)
-    
-    # Store the results
-    results <- rbind(results, data.frame(Test_Size = size, Metric = auc_value))
-  }
-  
-  # Plot the learning curve
-  ggplot(results, aes(x = Test_Size, y = Metric)) +
-    geom_line(color = "blue", size = 1) +
-    geom_point(color = "red", size = 3) +
-    labs(
-      title = "Learning Curve - Test Set Size for KNN",
-      x = "Test Set Size (Proportion)",
-      y = metric
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 14),
-      axis.title = element_text(size = 12),
-      axis.text = element_text(size = 10)
-    )
-}
-
-# Example Usage
-plot_learning_curve_test_knn(
-  trainData = trainData,
-  testData = testData,
-  metric = "ROC",
-  tuneGrid = expand.grid(k = 9)
-)
 # ------------------ SHAP for Models ------------------
 library(iml)
 
@@ -304,8 +183,8 @@ calculate_metrics <- function(predictions, y_true, probabilities) {
   mae <- mean(abs(pred_numeric - y_numeric))
   
   metrics <- data.frame(
-    Metric = c("Precision", "Recall", "F1-Score", "Accuracy", "MSE", "MAE"),
-    Value = round(c(precision, recall, f1_score, accuracy, mse, mae), 3)
+    Metric = c("Precision", "Recall", "F1-Score", "Accuracy"),
+    Value = round(c(precision, recall, f1_score, accuracy), 3)
   )
   
   return(metrics)
@@ -332,7 +211,6 @@ plot_metrics <- function(metrics_table) {
     geom_text(aes(label = Value), vjust = -0.5) +
     theme_minimal() +
     labs(
-      title = "Classification Metrics",
       y = "Value",
       x = "Metric"
     ) +
